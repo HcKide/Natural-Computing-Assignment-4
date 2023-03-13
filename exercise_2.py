@@ -19,18 +19,18 @@ def simple_ga_counting_ones(l, n_gens, elitism=True):
         # invert bits
         xm[idx] = 1 - xm[idx]
         # compute fitness of xm
-        f_xm = np.sum(xm)
         if elitism:
             # keep fittest generation
+            f_xm = np.sum(xm)
             if f_xm > f[gen-1]:
                 x = xm
                 f.append(f_xm)
             else:
                 f.append(f[gen-1])
+        # always update
         else:
             x = xm
             f.append(f_xm)
-
 
     return x, f
 
@@ -55,7 +55,6 @@ def plot_performance(l, n_gens):
         ax[1,j].set_xlabel(r'$n_{th}$-gen', fontsize=15, labelpad=0)
         ax[i,0].set_ylabel('fitness', fontsize=15, labelpad=-1)
     plt.show()
-
 
 if __name__ == '__main__':
     plot_performance(l=100,n_gens=1500)
