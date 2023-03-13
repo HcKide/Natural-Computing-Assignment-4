@@ -6,6 +6,7 @@ from itertools import combinations
 import copy
 from tqdm import tqdm
 import time
+import tsplib95
 
 # calculate distance (fitness) of permutation
 def calculate_fitness(cities):
@@ -21,7 +22,6 @@ def best_fitness(individuals):
         fitnesses.append(calculate_fitness(individual))
     idx = fitnesses.index(min(fitnesses))
     indi = individuals[idx]
-    # print(indi)
     return (min(fitnesses), indi)
 
 def mean_fitness(individuals):
@@ -32,23 +32,18 @@ def mean_fitness(individuals):
 
 # generate parents in generation using tournaments of size k
 def tournament_selection(generation, k):
-    # print("bestgen:")
-    # print(str(mean_fitness(generation)))
     parents = []
     n_battles = len(generation)//k
     for i in range(n_battles):
         best_fit = math.inf
         best_permutation = []
         for j in range(k):
-            # print(len(generation))
             permutation = generation.pop(random.randint(0, len(generation)-1))
             fitness = calculate_fitness(permutation)
             if fitness < best_fit:
                 best_fit = fitness
                 best_permutation = permutation
         parents.append(best_permutation)
-    # print("bestparents:")
-    # print(str(mean_fitness(parents)))
     return parents
 
 # make crossovers of parents
@@ -63,7 +58,6 @@ def order_crossover(individuals, p_c):
     for combi in selected_combis:
         indi1 = combi[0]
         indi2 = combi[1]
-        # print(len(indi1))
         if random.random() <= p_c:
             idx1, idx2 = np.sort(random.sample(range(0, len(indi1)+1), 2))
             slice1 = indi1[idx1:idx2]
@@ -117,6 +111,31 @@ def mutations(individuals, mu):
             mutated.append(indi)
     return mutated
 
+# swap 2 cities using the 2-opt algorithm
+def swap(cities, i, j):
+    newcities = []
+    newcities += cities[0:i+1]
+    middle = list(reversed(cities[i+1:j+1]))
+    newcities += middle
+    newcities += cities[j+1:len(cities)]
+    return newcities
+
+# do a local search on a generation of cities, return the new and improved generation
+def local_search(individuals):
+    new_gen = []
+    for indi in individuals:
+        best_indi = indi
+        best_delta = math.inf
+        for i in range(len(indi)):
+            for j in range(i+1, len(indi)):
+                lengthDelta = - math.dist(indi[i], indi[(i+1)% len(indi)]) - math.dist(indi[j], indi[(j+1)% len(indi)]) + math.dist(indi[(i+1)% len(indi)], indi[(j+1)% len(indi)]) + math.dist(indi[i], indi[j])
+                if lengthDelta < best_delta:
+                    new_indi = swap(copy.deepcopy(indi), i, j)
+                    best_delta = lengthDelta
+                    best_indi = new_indi
+        new_gen.append(best_indi)
+    return new_gen      
+
 def plot_fitness(best_fitnesses, mean_fitnesses):
     # plot fitness over time
     fig = plt.figure()
@@ -136,8 +155,7 @@ def plot_route(cities):
     plt.savefig('ex3pics/bestroute.png')
 
 
-def solve_tsp(p_c, mu):
-    random.seed(1)
+def solve_tsp(p_c, mu, memetic):
 
     # maximum city coordinates
     max_x = 50.0
@@ -146,13 +164,22 @@ def solve_tsp(p_c, mu):
     n_cities = 50
 
     # number of individuals in every generation
-    generation_size = 500
+    generation_size = 20
     generation = []
 
     # generate cities with random float x and y coordinate
     cities = []
-    for i in range(n_cities):
-        cities.append((round(random.uniform(0, max_x), 4), round(random.uniform(0, max_y), 4)))
+    # for i in range(n_cities):
+    #     cities.append((round(random.uniform(0, max_x), 4), round(random.uniform(0, max_y), 4)))
+    
+    # read cities from file
+    # with open('file-tsp.txt') as f:
+    #     for line in f: # 
+    #         cities.append([float(x) for x in line.split()])
+    # print(cities)
+
+    # load tsp file
+    cities = list(tsplib95.load('berlin52.tsp').as_name_dict()['node_coords'].values())
 
     # create random permutations of order
     for i in range(generation_size):
@@ -164,14 +191,25 @@ def solve_tsp(p_c, mu):
     mean_fitnesses = []
     epochs = 1500
     for i in tqdm(range(epochs)):
+        # calculate best and avg fitness
         best_fitnesses.append(best_fitness(generation)[0])
         mean_fitnesses.append(mean_fitness(generation))
+
+        # generate parents
         parents = tournament_selection(generation, k=2)
+
+        # recombine and mutate
         crossover = order_crossover(parents, p_c)
         generation = mutations(crossover, mu)
 
+        if memetic:
+            generation = local_search(generation)
+
     plot_fitness(best_fitnesses, mean_fitnesses)
     plot_route(best_fitness(generation)[1])
+    print("best fitness found: " + str(min(best_fitnesses)))
 
 if __name__ == "__main__":
-    solve_tsp(p_c=1, mu=0.01)
+    for i in range(10):
+        random.seed(i)
+        solve_tsp(p_c=1, mu=0.01, memetic=True)
