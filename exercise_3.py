@@ -19,7 +19,10 @@ def best_fitness(individuals):
     fitnesses = []
     for individual in individuals:
         fitnesses.append(calculate_fitness(individual))
-    return min(fitnesses)
+    idx = fitnesses.index(min(fitnesses))
+    indi = individuals[idx]
+    # print(indi)
+    return (min(fitnesses), indi)
 
 def mean_fitness(individuals):
     fitnesses = []
@@ -116,18 +119,21 @@ def mutations(individuals, mu):
 
 def plot_fitness(best_fitnesses, mean_fitnesses):
     # plot fitness over time
+    fig = plt.figure()
     plt.plot(mean_fitnesses)
     plt.plot(best_fitnesses)
     plt.legend(['mean fitness', 'best fitness'])
     plt.xlabel("epochs")
     plt.ylabel("shortest distance/fitness")
-    plt.savefig('fitness.png')
+    plt.savefig('ex3pics/fitness.png')
 
 def plot_route(cities):
+    fig = plt.figure()
     plt.scatter(*zip(*cities), color='green')
     for i in range(len(cities)):
         plt.plot((cities[i][0], cities[i-1][0]), (cities[i][1], cities[i-1][1]), color='red')
-    plt.savefig('bestroute.png')
+    plt.title("Fastest route found")
+    plt.savefig('ex3pics/bestroute.png')
 
 
 def solve_tsp(p_c, mu):
@@ -158,14 +164,14 @@ def solve_tsp(p_c, mu):
     mean_fitnesses = []
     epochs = 1500
     for i in tqdm(range(epochs)):
-        best_fitnesses.append(best_fitness(generation))
+        best_fitnesses.append(best_fitness(generation)[0])
         mean_fitnesses.append(mean_fitness(generation))
         parents = tournament_selection(generation, k=2)
         crossover = order_crossover(parents, p_c)
         generation = mutations(crossover, mu)
 
     plot_fitness(best_fitnesses, mean_fitnesses)
-    plot_route(generation[0])
+    plot_route(best_fitness(generation)[1])
 
 if __name__ == "__main__":
     solve_tsp(p_c=1, mu=0.01)
